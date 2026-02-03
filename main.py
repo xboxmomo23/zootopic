@@ -26,7 +26,6 @@ CARD_SIZE = 100
 MARGIN = 10
 
 # ----- CHARGEMENT DES SONS -----
-# Création de sons simples si les fichiers n'existent pas
 sounds = {}
 sound_files = {
     'flip': 'sounds/flip.wav',
@@ -44,10 +43,37 @@ for sound_name, sound_path in sound_files.items():
         sounds[sound_name] = None
         print(f"Son {sound_name} non trouvé, continuer sans son")
 
+# Charger la musique de fond (optionnelle)
+try:
+    pygame.mixer.music.load('sounds/background_music.mp3')
+    pygame.mixer.music.set_volume(0.3)  # Volume à 30%
+    pygame.mixer.music.play(-1)  # Jouer en boucle
+    print("Musique de fond chargée !")
+except:
+    print("Musique de fond non trouvée, continuer sans musique")
+
 def play_sound(sound_name):
     """Joue un son si disponible"""
     if sounds.get(sound_name):
         sounds[sound_name].play()
+
+# ----- CHARGEMENT DES IMAGES DE FOND -----
+background_images = {}
+bg_files = {
+    'menu': 'images/backmenu2.png',
+    'game': 'images/background.png'
+}
+
+# Charger les fonds s'ils existent
+for bg_name, bg_path in bg_files.items():
+    try:
+        bg_img = pygame.image.load(bg_path)
+        # Redimensionner à la taille de l'écran
+        background_images[bg_name] = pygame.transform.scale(bg_img, (WIDTH, HEIGHT))
+        print(f"Fond {bg_name} chargé !")
+    except:
+        background_images[bg_name] = None
+        print(f"Fond {bg_name} non trouvé, utiliser fond vert")
 
 # ----- CHARGEMENT DES IMAGES -----
 card_images_base = [
@@ -194,9 +220,15 @@ def setup_game():
     phase_start = pygame.time.get_ticks()
     start_time = pygame.time.get_ticks()
 
-def draw_background():
-    screen.fill(BACKGROUND)
-    pygame.draw.rect(screen, GREEN_SOFT, (0, 0, WIDTH, HEIGHT))
+def draw_background(bg_type='game'):
+    """Dessine le fond (image ou couleur unie)"""
+    if background_images.get(bg_type):
+        # Si une image de fond existe, l'afficher
+        screen.blit(background_images[bg_type], (0, 0))
+    else:
+        # Sinon, utiliser le fond vert par défaut
+        screen.fill(BACKGROUND)
+        pygame.draw.rect(screen, GREEN_SOFT, (0, 0, WIDTH, HEIGHT))
 
 def draw_cards(show_all=False):
     for i, rect in enumerate(cards):
@@ -217,16 +249,16 @@ def get_card(pos):
 
 def draw_menu():
     """Affiche le menu principal"""
-    draw_background()
+    draw_background('menu')
     
     # Titre
-    title_font = pygame.font.SysFont(None, 80, bold=True)
+    title_font = pygame.font.SysFont("Comic Sans MS", 80, bold=True)
     title_text = title_font.render("Memory Zootopie", True, BLACK)
     title_rect = title_text.get_rect(center=(WIDTH//2, 80))
     screen.blit(title_text, title_rect)
     
     # Sous-titre
-    subtitle_font = pygame.font.SysFont(None, 40)
+    subtitle_font = pygame.font.SysFont("Comic Sans MS", 40, bold=True)
     subtitle = subtitle_font.render("Mène ton enquête !", True, BLACK)
     subtitle_rect = subtitle.get_rect(center=(WIDTH//2, 140))
     screen.blit(subtitle, subtitle_rect)
@@ -259,7 +291,7 @@ def draw_pause_menu():
     screen.blit(overlay, (0, 0))
     
     # Titre
-    title_font = pygame.font.SysFont(None, 70, bold=True)
+    title_font = pygame.font.SysFont("Comic Sans MS", 70, bold=True)
     title = title_font.render("PAUSE", True, WHITE)
     title_rect = title.get_rect(center=(WIDTH//2, 150))
     screen.blit(title, title_rect)
@@ -283,16 +315,16 @@ while running:
     
     # ========== MENU PRINCIPAL ==========
     if game_state == "menu":
-        draw_background()
+        draw_background('menu')
         
         # Titre
-        title_font = pygame.font.SysFont(None, 80, bold=True)
+        title_font = pygame.font.SysFont("Comic Sans MS", 80, bold=True)
         title_text = title_font.render("Memory Zootopie", True, BLACK)
         title_rect = title_text.get_rect(center=(WIDTH//2, 80))
         screen.blit(title_text, title_rect)
         
         # Sous-titre
-        subtitle_font = pygame.font.SysFont(None, 40)
+        subtitle_font = pygame.font.SysFont("Comic Sans MS", 35, bold=True)
         subtitle = subtitle_font.render("Mène ton enquête !", True, BLACK)
         subtitle_rect = subtitle.get_rect(center=(WIDTH//2, 140))
         screen.blit(subtitle, subtitle_rect)
@@ -322,10 +354,10 @@ while running:
     
     # ========== JEU ==========
     elif game_state == "game":
-        draw_background()
+        draw_background('game')
         
         # ---- TITRE ----
-        title_font = pygame.font.SysFont(None, 60, bold=True)
+        title_font = pygame.font.SysFont("Comic Sans MS", 40, bold=True)
         title_text = title_font.render("Mène ton enquête", True, BLACK)
         title_rect = title_text.get_rect(center=(WIDTH//2, 50))
         screen.blit(title_text, title_rect)
@@ -376,7 +408,7 @@ while running:
         elapsed = (now - start_time) // 1000
         if game_over or game_won:
             elapsed = (phase_start - start_time) // 1000
-        font = pygame.font.SysFont(None, 36)
+        font = pygame.font.SysFont("Comic Sans MS", 30, bold=True)
         timer_text = font.render(f"Temps : {elapsed} s", True, BLACK)
         screen.blit(timer_text, (10, 10))
         error_text = font.render(f"Erreurs : {errors}/{MAX_ERRORS}", True, BLACK)
@@ -470,7 +502,7 @@ while running:
         screen.blit(overlay, (0, 0))
         
         # Titre
-        title_font = pygame.font.SysFont(None, 70, bold=True)
+        title_font = pygame.font.SysFont("Comic Sans MS", 60, bold=True)
         title = title_font.render("PAUSE", True, WHITE)
         title_rect = title.get_rect(center=(WIDTH//2, 150))
         screen.blit(title, title_rect)
