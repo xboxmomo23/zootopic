@@ -36,11 +36,12 @@ card_colors = [
     (255, 120, 180)
 ] * 2
 
+MAX_ERRORS = 3  # nombre d'erreurs autorisées
 
 # ----- FONCTIONS -----
 
 def setup_game():
-    global colors, cards, revealed, matched
+    global colors, cards, revealed, matched, errors, start_time, show_start
 
     colors = card_colors.copy()
     random.shuffle(colors)
@@ -48,13 +49,16 @@ def setup_game():
     cards = []
     revealed = []
     matched = []
+    errors = 0
 
     for i in range(16):
         x = (i % COLS) * (CARD_SIZE + MARGIN) + MARGIN
         y = (i // COLS) * (CARD_SIZE + MARGIN) + START_Y
-
         rect = pygame.Rect(x, y, CARD_SIZE, CARD_SIZE)
         cards.append(rect)
+
+    start_time = pygame.time.get_ticks()
+    show_start = True  # toutes les cartes visibles pendant 2 secondes au début
 
 
 def draw_background():
@@ -64,10 +68,11 @@ def draw_background():
 
 def draw_cards():
     for i, rect in enumerate(cards):
-        if i in revealed or i in matched:
+        if show_start or i in revealed or i in matched:
             pygame.draw.rect(screen, colors[i], rect)
         else:
             pygame.draw.rect(screen, GRAY, rect)
+        pygame.draw.rect(screen, BLACK, rect, 2)
 
 
 def get_card(pos):
@@ -77,67 +82,89 @@ def get_card(pos):
     return None
 
 
-def draw_button():
-    button_rect = pygame.Rect(200, 600, 200, 60)
+def draw_button(text, y_pos):
+    button_rect = pygame.Rect(150, y_pos, 300, 60)
     pygame.draw.rect(screen, WHITE, button_rect)
     pygame.draw.rect(screen, BLACK, button_rect, 2)
-
     font = pygame.font.SysFont(None, 40)
-    text = font.render("Recommencer", True, BLACK)
-    screen.blit(text, (button_rect.x + 25, button_rect.y + 15))
-
+    label = font.render(text, True, BLACK)
+    screen.blit(label, (button_rect.x + 40, button_rect.y + 15))
     return button_rect
 
 
-# ----- INITIALISATION -----
+def draw_timer():
+    elapsed = (pygame.time.get_ticks() - start_time) // 1000
+    font = pygame.font.SysFont(None, 36)
+    timer_text = font.render(f"Temps : {elapsed} s", True, BLACK)
+    screen.blit(timer_text, (10, 10))
 
+
+def draw_errors():
+    font = pygame.font.SysFont(None, 36)
+    error_text = font.render(f"Erreurs : {errors}/{MAX_ERRORS}", True, BLACK)
+    screen.blit(error_text, (WIDTH - 200, 10))
+
+
+# ----- INITIALISATION -----
 setup_game()
 wait_time = 0
+game_over = False
+game_won = False
 
 # ----- BOUCLE DU JEU -----
-
 running = True
-
 while running:
     clock.tick(60)
-
     draw_background()
     draw_cards()
+    draw_timer()
+    draw_errors()
 
     all_found = len(matched) == 16
 
     if all_found:
-        button = draw_button()
+        game_won = True
+        button = draw_button("Recommencer", 600)
+
+    if game_over and not game_won:
+        button = draw_button("Recommencer", 600)
 
     pygame.display.flip()
 
+    # ---- ÉVÉNEMENTS ----
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+            if (all_found or game_over) and button.collidepoint(event.pos):
+                setup_game()
+                game_over = False
+                game_won = False
 
-            if all_found:
-                if button.collidepoint(event.pos):
-                    setup_game()
-            else:
+            elif not all_found and not game_over and not show_start:
                 if len(revealed) < 2:
                     clicked = get_card(event.pos)
-
                     if clicked is not None and clicked not in revealed and clicked not in matched:
                         revealed.append(clicked)
 
                         if len(revealed) == 2:
                             wait_time = pygame.time.get_ticks()
 
-    if len(revealed) == 2:
+    # ---- LOGIQUE ----
+    if show_start:
+        if pygame.time.get_ticks() - start_time > 2000:
+            show_start = False
+            start_time = pygame.time.get_ticks()  # reset timer après la phase de visibilité
+
+    if len(revealed) == 2 and not show_start:
         if pygame.time.get_ticks() - wait_time > 700:
             a, b = revealed
-
             if colors[a] == colors[b]:
                 matched.extend([a, b])
-
+            else:
+                errors += 1
+                if errors > MAX_ERRORS:
+                    game_over = True
             revealed = []
-
-pygame.quit()
