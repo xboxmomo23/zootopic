@@ -3,17 +3,21 @@ import random
 import sys
 import os
 
+# On initialise pygame (obligatoire avant toute utilisation)
 pygame.init()
 pygame.mixer.init()
 
-# ----- FENÊTRE -----
+# Taille de l'écran (format tablette)
 WIDTH, HEIGHT = 800, 600
+
+# Création de la fenêtre du jeu
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Memory Zootopie")
 
+# Horloge pour gérer le temps et les FPS
 clock = pygame.time.Clock()
 
-# ----- COULEURS -----
+# Couleurs (utilisées pour tests ou fond)
 BACKGROUND = (120, 190, 220)
 GREEN_SOFT = (140, 210, 170)
 GRAY = (170, 170, 170)
@@ -22,6 +26,7 @@ BLACK = (0, 0, 0)
 ORANGE = (255, 140, 0)
 GOLD = (255, 215, 0)
 
+# Polices et textes
 CARD_SIZE = 100
 MARGIN = 10
 
