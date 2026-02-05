@@ -3,8 +3,13 @@ import sys
 import math
 import os
 import subprocess
+import json
 
-# Initialisation de Pygame et du mixer pour le son
+def save_volume():
+    with open("config.json", "w") as f:
+        json.dump({"volume": volume}, f)
+
+# Initialisation de Pygame pour le son
 pygame.init()
 pygame.mixer.init()
 
@@ -52,7 +57,7 @@ except Exception as e:
 overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 overlay.fill((0, 0, 0, 110))
 
-# Polices
+# Police
 title_font = pygame.font.SysFont('Comic Sans MS', 70, bold=True)
 button_font = pygame.font.SysFont('Comic Sans MS', 40)
 
@@ -79,6 +84,7 @@ def draw_button(rect, base_color, hover_color, text):
 
 def draw_volume_control():
     global volume
+
     # Rectangle de fond pour le volume
     vol_rect = pygame.Rect(20, HEIGHT - 40, 230, 35)
     pygame.draw.rect(screen, WHITE, vol_rect, border_radius=15)
@@ -93,7 +99,7 @@ def draw_volume_control():
 
     # Bouton de réglage du son
     vol_knob_rect = pygame.Rect(25 + 100 * volume - 5, HEIGHT - 35, 10, 20)
-    pygame.draw.rect(screen, RED, vol_knob_rect, border_radius=3)
+    pygame.draw.rect(screen, WHITE, vol_knob_rect, border_radius=3)
 
     # Gestion du clic sur la barre de volume
     mouse_pos = pygame.mouse.get_pos()
@@ -106,9 +112,25 @@ def start_game():
     global volume
     print("Lancement de main.py...")
     pygame.mixer.music.stop()
-    subprocess.run(["python", "main.py"])
+    
+    # ✅ CORRECTION : Chemin correct vers main.py
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    main_path = os.path.join(script_dir, "main.py")
+    
+    print(f"Répertoire du menu : {script_dir}")
+    print(f"Chemin vers main.py : {main_path}")
+    
+    if os.path.exists(main_path):
+        print(f"✓ Fichier trouvé, lancement...")
+        # ✅ Exécuter main.py DANS son propre répertoire (cwd=script_dir)
+        subprocess.run(["python", "main.py"], cwd=script_dir)
+    else:
+        print(f"✗ ERREUR : {main_path} introuvable !")
+        print("Vérifiez que main.py est dans le même dossier que menu.py")
+    
     pygame.quit()
     sys.exit()
+
 def main_menu():
     global volume
     pulse = 0

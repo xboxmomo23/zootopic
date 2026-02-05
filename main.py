@@ -2,18 +2,32 @@ import pygame
 import random
 import sys
 import os
+import json
+import subprocess
 
+# Initialisation de Pygame
 pygame.init()
 pygame.mixer.init()
 
-# ----- FENÊTRE -----
+# Configuration de la fenêtre
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Memory Zootopie")
 
 clock = pygame.time.Clock()
+volume = 0.3
 
-# ----- COULEURS -----
+# Charger le volume depuis la config
+try:
+    with open("config.json", "r") as f:
+        config = json.load(f)
+        volume = config.get("volume", 0.3)
+        pygame.mixer.music.set_volume(volume)
+except FileNotFoundError:
+    volume = 0.3
+    print("Fichier de configuration non trouvé, volume par défaut.")
+
+# Couleurs du jeu
 BACKGROUND = (120, 190, 220)
 GREEN_SOFT = (140, 210, 170)
 GRAY = (170, 170, 170)
@@ -21,11 +35,15 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 ORANGE = (255, 140, 0)
 GOLD = (255, 215, 0)
+SHADOW = (100, 100, 100)
 
+button_font = pygame.font.SysFont('Comic Sans MS', 24)
+
+# Taille des cartes
 CARD_SIZE = 100
 MARGIN = 10
 
-# ----- CHARGEMENT DES SONS -----
+# Dictionnaire des effets sonores
 sounds = {}
 sound_files = {
     'flip': 'sounds/flip.wav',
@@ -35,7 +53,7 @@ sound_files = {
     'click': 'sounds/click.wav'
 }
 
-# Charger les sons s'ils existent, sinon None
+# Charger tous les sons
 for sound_name, sound_path in sound_files.items():
     try:
         sounds[sound_name] = pygame.mixer.Sound(sound_path)
@@ -43,40 +61,80 @@ for sound_name, sound_path in sound_files.items():
         sounds[sound_name] = None
         print(f"Son {sound_name} non trouvé, continuer sans son")
 
-# Charger la musique de fond (optionnelle)
+# Musique de fond
 try:
-    pygame.mixer.music.load('sounds/background_music.mp3')
-    pygame.mixer.music.set_volume(0.3)  # Volume à 30%
-    pygame.mixer.music.play(-1)  # Jouer en boucle
+    pygame.mixer.music.load('bransboynd.mp3')
+    pygame.mixer.music.set_volume(volume)
+    pygame.mixer.music.play(-1)
     print("Musique de fond chargée !")
 except:
     print("Musique de fond non trouvée, continuer sans musique")
 
 def play_sound(sound_name):
-    """Joue un son si disponible"""
+    # Jouer un son s'il existe
     if sounds.get(sound_name):
         sounds[sound_name].play()
 
-# ----- CHARGEMENT DES IMAGES DE FOND -----
-background_images = {}
+def save_volume():
+    # Sauvegarder le volume dans config.json
+    with open("config.json", "w") as f:
+        json.dump({"volume": volume}, f)
+
+def draw_text(text, font, color, x, y, center=False):
+    # Afficher du texte
+    surf = font.render(text, True, color)
+    if center:
+        rect = surf.get_rect(center=(x, y))
+        screen.blit(surf, rect)
+    else:
+        screen.blit(surf, (x, y))
+
+def draw_volume_control(x, y):
+    global volume
+
+    # Fond du contrôle de volume
+    vol_rect = pygame.Rect(x, y, 230, 35)
+    pygame.draw.rect(screen, WHITE, vol_rect, border_radius=15)
+
+    # Texte SON
+    draw_text("SON", button_font, BLACK, x + 95, y + 15)
+
+    # Barre de progression
+    vol_bar_rect = pygame.Rect(x + 25, y + 10, 100, 10)
+    pygame.draw.rect(screen, SHADOW, vol_bar_rect.move(1, 1))
+    pygame.draw.rect(screen, BLACK, (x + 25, y + 10, 100 * volume, 10))
+
+    # Curseur
+    vol_knob_rect = pygame.Rect(x + 25 + 100 * volume - 5, y + 5, 10, 20)
+    pygame.draw.rect(screen, ORANGE, vol_knob_rect, border_radius=3)
+
+    # Détecter le clic sur la barre
+    mouse_pos = pygame.mouse.get_pos()
+    if vol_bar_rect.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
+        volume = (mouse_pos[0] - (x + 25)) / 100
+        volume = max(0, min(1, volume))
+        pygame.mixer.music.set_volume(volume)
+        save_volume()
+
+# Charger les images de fond
+fonds = {}
 bg_files = {
     'menu': 'images/backmenu2.png',
-    'game': 'images/background.png'
+    'game': 'images/background.png',
+    'pause': 'images/ZOO2.jpg',
 }
 
-# Charger les fonds s'ils existent
 for bg_name, bg_path in bg_files.items():
     try:
         bg_img = pygame.image.load(bg_path)
-        # Redimensionner à la taille de l'écran
-        background_images[bg_name] = pygame.transform.scale(bg_img, (WIDTH, HEIGHT))
+        fonds[bg_name] = pygame.transform.scale(bg_img, (WIDTH, HEIGHT))
         print(f"Fond {bg_name} chargé !")
     except:
-        background_images[bg_name] = None
+        fonds[bg_name] = None
         print(f"Fond {bg_name} non trouvé, utiliser fond vert")
 
-# ----- CHARGEMENT DES IMAGES -----
-card_images_base = [
+# Charger les images des personnages
+imgs_persos = [
     pygame.image.load("images/lapin.png"),
     pygame.image.load("images/renard.png"),
     pygame.image.load("images/serpent.png"),
@@ -87,33 +145,35 @@ card_images_base = [
     pygame.image.load("images/gazelle.jpg"),
 ]
 
-# Redimensionner toutes les images à la taille des cartes
-card_images_base = [
+# Redimensionner toutes les cartes
+imgs_persos = [
     pygame.transform.scale(img, (CARD_SIZE, CARD_SIZE))
-    for img in card_images_base
+    for img in imgs_persos
 ]
 
-# Image pour le dos de la carte (gris)
+# Créer le dos de carte
 card_back = pygame.Surface((CARD_SIZE, CARD_SIZE))
 card_back.fill(GRAY)
 
-# ----- VARIABLES GLOBALES -----
-levels = [8, 16, 24]  # facile, moyen, difficile (bonus)
+# Variables du jeu
+levels = [8, 16, 24]
 level_names = ["Niveau 1 - Facile", "Niveau 2 - Moyen", "Niveau 3 - L'Attaque !"]
 current_level = 0
-unlocked_levels = 1  # Nombre de niveaux déverrouillés (commence à 1)
+unlocked_levels = 1
 
-game_state = "menu"  # États: "menu", "game", "pause"
+game_state = "menu"
 
+# Variables pour les cartes
 cards = []
 images = []
 card_ids = []
 revealed = []
-matched = []
+cartes_trouvees = []
 errors = 0
-start_time = 0
+temps_debut = 0
 MAX_ERRORS = 3
 
+# Variables des phases
 phase = "shuffle"
 phase_start = 0
 wait_time = 0
@@ -122,7 +182,7 @@ game_won = False
 level_completed = False
 base_positions = []
 
-# ----- CLASSES POUR LES BOUTONS -----
+# Classe pour les boutons
 class Button:
     def __init__(self, x, y, width, height, text, color=WHITE, text_color=BLACK, font_size=36):
         self.rect = pygame.Rect(x, y, width, height)
@@ -131,243 +191,269 @@ class Button:
         self.text_color = text_color
         self.font = pygame.font.SysFont(None, font_size)
         self.hovered = False
-    
+
     def draw(self, surface):
-        # Effet hover
+        # Changer de couleur au survol
         color = self.color if not self.hovered else GOLD
         pygame.draw.rect(surface, color, self.rect)
         pygame.draw.rect(surface, BLACK, self.rect, 3)
-        
+
         text_surf = self.font.render(self.text, True, self.text_color)
         text_rect = text_surf.get_rect(center=self.rect.center)
         surface.blit(text_surf, text_rect)
-    
+
     def is_hovered(self, pos):
         self.hovered = self.rect.collidepoint(pos)
         return self.hovered
-    
+
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
-# ----- FONCTIONS -----
+# Classe pour les cartes
+class Card:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.rect = pygame.Rect(x, y, CARD_SIZE, CARD_SIZE)
+
+    @property
+    def topleft(self):
+        return (self.x, self.y)
+
+    @topleft.setter
+    def topleft(self, pos):
+        self.x, self.y = pos
+        self.rect.topleft = pos
+
+def launch_action_game():
+    # Lancer le jeu de tir (niveau 3)
+    print("\n" + "="*50)
+    print("TENTATIVE DE LANCEMENT DU JEU D'ACTION")
+    print("="*50)
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"Répertoire actuel: {current_dir}")
+    
+    # Chemin vers le jeu de tir
+    action_game_path = os.path.join(current_dir, "action", "main.py")
+    normalized_path = os.path.normpath(action_game_path)
+    
+    print(f"Test du chemin: {normalized_path}")
+    
+    if os.path.exists(normalized_path):
+        print(f"✓ JEU D'ACTION TROUVÉ : {normalized_path}")
+        
+        try:
+            print(f"\n→ Lancement du jeu d'action...")
+            pygame.mixer.music.stop()
+            print("→ Musique arrêtée")
+            
+            action_dir = os.path.dirname(normalized_path)
+            print(f"→ Répertoire du jeu d'action: {action_dir}")
+            
+            # Lancer le jeu de tir
+            print(f"→ Commande: {sys.executable} main.py dans {action_dir}")
+            subprocess.Popen([sys.executable, "main.py"], cwd=action_dir)
+            print("→ Processus lancé !")
+            
+            # Fermer le jeu de cartes
+            print("→ Fermeture de pygame...")
+            pygame.quit()
+            print("→ Appel de sys.exit()...")
+            sys.exit(0)
+            
+        except Exception as e:
+            print(f"\n✗ ERREUR lors du lancement : {e}")
+            import traceback
+            traceback.print_exc()
+            pygame.init()
+            pygame.mixer.init()
+            return False
+    else:
+        print(f"\n✗ FICHIER DU JEU D'ACTION NON TROUVÉ : {normalized_path}")
+        print("Vérifiez que le fichier action/main.py existe !")
+        return False
+
 def setup_game():
-    global cards, images, card_ids, revealed, matched, errors
-    global phase, phase_start, start_time, game_over, game_won, base_positions
+    global cards, images, card_ids, revealed, cartes_trouvees, errors
+    global phase, phase_start, temps_debut, game_over, game_won, base_positions
     global MAX_ERRORS, level_completed
 
-    # Définir erreurs max selon niveau
-    if current_level == 0:
-        MAX_ERRORS = 3
-    elif current_level == 1:
-        MAX_ERRORS = 6
-    else:
-        MAX_ERRORS = 10  # Niveau bonus plus difficile
+    # Définir le nombre d'erreurs selon le niveau
+    MAX_ERRORS = 3 if current_level == 0 else 6
 
     num_cards = levels[current_level]
     num_pairs = num_cards // 2
     
-    # Limiter au nombre d'images disponibles
-    num_pairs = min(num_pairs, len(card_images_base))
-    num_cards = num_pairs * 2
+    # Créer les paires d'images
+    images_list = imgs_persos[:num_pairs]
+    card_ids_list = list(range(num_pairs)) * 2
     
-    # Créer une liste d'IDs pour identifier les paires
-    ids_list = list(range(num_pairs)) * 2
-    random.shuffle(ids_list)
-    
-    card_ids.clear()
-    card_ids.extend(ids_list)
-    
-    # Créer la liste d'images correspondante
-    images_list = [card_images_base[id] for id in ids_list]
+    # Mélanger les cartes
+    combined = list(zip(images_list * 2, card_ids_list))
+    random.shuffle(combined)
+    images_list, card_ids_list = zip(*combined)
     
     images.clear()
     images.extend(images_list)
+    card_ids.clear()
+    card_ids.extend(card_ids_list)
 
+    # Réinitialiser les variables
     cards.clear()
     revealed.clear()
-    matched.clear()
+    cartes_trouvees.clear()
     errors = 0
     game_over = False
     game_won = False
     level_completed = False
     base_positions.clear()
 
-    # Grille automatique selon le nombre de cartes
-    if num_cards == 8:
-        rows, cols = 2, 4
-    elif num_cards == 16:
-        rows, cols = 4, 4
-    else:
-        rows, cols = 4, 6  # Pour le niveau bonus
-
-    # Calculer la largeur et hauteur totale de la grille
+    # Calculer la grille
+    rows, cols = (2, 4) if num_cards == 8 else (4, 4) if num_cards == 16 else (4, 6)
+    
     grid_width = cols * CARD_SIZE + (cols - 1) * MARGIN
     grid_height = rows * CARD_SIZE + (rows - 1) * MARGIN
     
-    # Centrer la grille
     start_x = (WIDTH - grid_width) // 2
-    available_height = HEIGHT - 120
-    start_y = 120 + (available_height - grid_height) // 2
+    start_y = 120
     
+    # Créer les cartes
     for i in range(num_cards):
         x = start_x + (i % cols) * (CARD_SIZE + MARGIN)
         y = start_y + (i // cols) * (CARD_SIZE + MARGIN)
-        rect = pygame.Rect(x, y, CARD_SIZE, CARD_SIZE)
-        cards.append(rect)
+        card = Card(x, y)
+        cards.append(card)
         base_positions.append((x, y))
 
     phase = "shuffle"
     phase_start = pygame.time.get_ticks()
-    start_time = pygame.time.get_ticks()
+    temps_debut = pygame.time.get_ticks()
 
-def draw_background(bg_type='game'):
-    """Dessine le fond (image ou couleur unie)"""
-    if background_images.get(bg_type):
-        # Si une image de fond existe, l'afficher
-        screen.blit(background_images[bg_type], (0, 0))
+def draw_background(bg_type):
+    # Afficher le fond d'écran
+    if fonds.get(bg_type):
+        screen.blit(fonds[bg_type], (0, 0))
     else:
-        # Sinon, utiliser le fond vert par défaut
-        screen.fill(BACKGROUND)
-        pygame.draw.rect(screen, GREEN_SOFT, (0, 0, WIDTH, HEIGHT))
+        screen.fill(GREEN_SOFT)
 
 def draw_cards(show_all=False):
-    for i, rect in enumerate(cards):
-        # Si la carte doit être montrée, afficher l'image
-        if show_all or i in revealed or i in matched:
-            screen.blit(images[i], rect)
+    # Dessiner toutes les cartes
+    for i, card in enumerate(cards):
+        if show_all or i in revealed or i in cartes_trouvees:
+            screen.blit(images[i], (card.x, card.y))
         else:
-            screen.blit(card_back, rect)
+            screen.blit(card_back, (card.x, card.y))
         
-        # Bordure noire
-        pygame.draw.rect(screen, BLACK, rect, 2)
+        pygame.draw.rect(screen, BLACK, (card.x, card.y, CARD_SIZE, CARD_SIZE), 2)
 
 def get_card(pos):
-    for i, rect in enumerate(cards):
-        if rect.collidepoint(pos):
+    # Trouver quelle carte a été cliquée
+    for i, card in enumerate(cards):
+        if card.rect.collidepoint(pos):
             return i
     return None
 
 def draw_menu():
-    """Affiche le menu principal"""
-    draw_background('menu')
+    # Créer les boutons du menu
+    menu_buttons = []
+    button_y = 250
     
-    # Titre
-    title_font = pygame.font.SysFont("Comic Sans MS", 80, bold=True)
-    title_text = title_font.render("Memory Zootopie", True, BLACK)
-    title_rect = title_text.get_rect(center=(WIDTH//2, 80))
-    screen.blit(title_text, title_rect)
-    
-    # Sous-titre
-    subtitle_font = pygame.font.SysFont("Comic Sans MS", 40, bold=True)
-    subtitle = subtitle_font.render("Mène ton enquête !", True, BLACK)
-    subtitle_rect = subtitle.get_rect(center=(WIDTH//2, 140))
-    screen.blit(subtitle, subtitle_rect)
-    
-    # Boutons de sélection de niveau
-    buttons = []
-    for i in range(len(levels)):
-        y_pos = 220 + i * 90
-        
+    for i, level_name in enumerate(level_names):
         # Vérifier si le niveau est déverrouillé
         if i < unlocked_levels:
-            btn = Button(250, y_pos, 300, 60, level_names[i])
+            color = WHITE
+            text = level_name
         else:
-            btn = Button(250, y_pos, 300, 60, "🔒 " + level_names[i], color=GRAY)
+            color = GRAY
+            text = f"{level_name} (verrouillé)"
         
-        buttons.append(btn)
+        btn = Button(200, button_y, 400, 50, text, color=color)
+        menu_buttons.append(btn)
+        button_y += 70
     
     # Bouton quitter
-    quit_btn = Button(250, 500, 300, 50, "Quitter", font_size=32)
-    buttons.append(quit_btn)
+    quit_btn = Button(200, button_y + 20, 400, 50, "Quitter")
+    menu_buttons.append(quit_btn)
     
-    return buttons
+    return menu_buttons
 
 def draw_pause_menu():
-    """Affiche le menu pause"""
-    # Fond semi-transparent
-    overlay = pygame.Surface((WIDTH, HEIGHT))
-    overlay.set_alpha(200)
-    overlay.fill(BLACK)
-    screen.blit(overlay, (0, 0))
-    
-    # Titre
-    title_font = pygame.font.SysFont("Comic Sans MS", 70, bold=True)
-    title = title_font.render("PAUSE", True, WHITE)
-    title_rect = title.get_rect(center=(WIDTH//2, 150))
-    screen.blit(title, title_rect)
-    
-    # Boutons
+    # Créer les boutons du menu pause
     resume_btn = Button(250, 250, 300, 60, "Continuer")
     menu_btn = Button(250, 340, 300, 60, "Menu principal")
     quit_btn = Button(250, 430, 300, 60, "Quitter")
-    
     return [resume_btn, menu_btn, quit_btn]
 
-# ----- INITIALISATION -----
+# Lancer le premier niveau
+setup_game()
 running = True
 menu_buttons = draw_menu()
-pause_buttons = []
 
+# Boucle principale du jeu
 while running:
     clock.tick(60)
     now = pygame.time.get_ticks()
     mouse_pos = pygame.mouse.get_pos()
-    
-    # ========== MENU PRINCIPAL ==========
+
+    # Menu principal
     if game_state == "menu":
         draw_background('menu')
-        
+
         # Titre
-        title_font = pygame.font.SysFont("Comic Sans MS", 80, bold=True)
-        title_text = title_font.render("Memory Zootopie", True, BLACK)
-        title_rect = title_text.get_rect(center=(WIDTH//2, 80))
-        screen.blit(title_text, title_rect)
-        
-        # Sous-titre
-        subtitle_font = pygame.font.SysFont("Comic Sans MS", 35, bold=True)
-        subtitle = subtitle_font.render("Mène ton enquête !", True, BLACK)
-        subtitle_rect = subtitle.get_rect(center=(WIDTH//2, 140))
-        screen.blit(subtitle, subtitle_rect)
-        
-        # Dessiner les boutons
+        title_font = pygame.font.SysFont("Comic Sans MS", 60, bold=True)
+        title = title_font.render("MEMORY ZOOTOPIE", True, WHITE)
+        title_rect = title.get_rect(center=(WIDTH//2, 120))
+        screen.blit(title, title_rect)
+
+        # Afficher les boutons
         for btn in menu_buttons:
             btn.is_hovered(mouse_pos)
             btn.draw(screen)
-        
-        # Gestion des événements
+
+        # Contrôle du volume
+        draw_volume_control(20, HEIGHT - 50)
+
+        # Gérer les clics
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                # Vérifier quel bouton est cliqué
-                for i, btn in enumerate(menu_buttons[:-1]):  # Tous sauf "Quitter"
+                for i, btn in enumerate(menu_buttons[:-1]):
                     if btn.is_clicked(mouse_pos) and i < unlocked_levels:
                         play_sound('click')
                         current_level = i
-                        setup_game()
-                        game_state = "game"
+                        
+                        # Si niveau 3, lancer le jeu d'action
+                        if current_level == 2:
+                            if not launch_action_game():
+                                setup_game()
+                                game_state = "game"
+                        else:
+                            setup_game()
+                            game_state = "game"
                         break
-                
-                # Bouton Quitter
+
+                # Bouton quitter
                 if menu_buttons[-1].is_clicked(mouse_pos):
                     running = False
-    
-    # ========== JEU ==========
+
+    # Phase de jeu
     elif game_state == "game":
         draw_background('game')
-        
-        # ---- TITRE ----
+
+        # Titre
         title_font = pygame.font.SysFont("Comic Sans MS", 40, bold=True)
         title_text = title_font.render("Mène ton enquête", True, BLACK)
         title_rect = title_text.get_rect(center=(WIDTH//2, 50))
         screen.blit(title_text, title_rect)
-        
-        # Bouton pause (petit)
+
+        # Bouton pause
         pause_btn = Button(WIDTH - 100, 10, 80, 35, "⏸ Menu", font_size=24)
         pause_btn.is_hovered(mouse_pos)
         pause_btn.draw(screen)
-        
-        # ---- PHASES ----
+
+        # Phase de mélange
         if phase == "shuffle":
             for i in range(len(cards)):
                 offset_x = random.randint(-5, 5)
@@ -380,20 +466,22 @@ while running:
                 phase = "show"
                 phase_start = now
 
+        # Phase de visualisation
         elif phase == "show":
             draw_cards(show_all=True)
             if now - phase_start > 4000:
                 phase = "play"
                 phase_start = now
-                start_time = now
+                temps_debut = now
 
+        # Phase de jeu
         elif phase == "play":
             draw_cards()
             if len(revealed) == 2 and not game_over and not game_won:
                 if now - wait_time > 700:
                     a, b = revealed
                     if card_ids[a] == card_ids[b]:
-                        matched.extend([a, b])
+                        cartes_trouvees.extend([a, b])
                         play_sound('match')
                     else:
                         errors += 1
@@ -404,19 +492,19 @@ while running:
 
         draw_cards(show_all=(phase == "show" or phase == "shuffle"))
 
-        # ---- TIMER ET ERREURS ----
-        elapsed = (now - start_time) // 1000
+        # Afficher le temps et les erreurs
+        elapsed = (now - temps_debut) // 1000
         if game_over or game_won:
-            elapsed = (phase_start - start_time) // 1000
+            elapsed = (phase_start - temps_debut) // 1000
         font = pygame.font.SysFont("Comic Sans MS", 30, bold=True)
         timer_text = font.render(f"Temps : {elapsed} s", True, BLACK)
         screen.blit(timer_text, (10, 10))
         error_text = font.render(f"Erreurs : {errors}/{MAX_ERRORS}", True, BLACK)
         screen.blit(error_text, (WIDTH - 200, 55))
 
-        # ---- BOUTON FIN DE NIVEAU ET MESSAGE ----
+        # Boutons de fin de niveau
         button = None
-        all_found = len(matched) == len(cards)
+        all_found = len(cartes_trouvees) == len(cards)
         msg = None
 
         # Victoire
@@ -426,19 +514,19 @@ while running:
                 level_completed = True
                 phase_start = now
                 play_sound('win')
-                
-                # Déverrouiller le niveau suivant
+
+                # Débloquer le niveau suivant
                 if current_level + 1 >= unlocked_levels:
                     unlocked_levels = min(current_level + 2, len(levels))
-            
-            # Choisir le label du bouton selon le niveau
+
+            # Texte du bouton selon le niveau
             if current_level == 0:
                 label = "Niveau suivant"
             elif current_level == 1:
                 label = "Passons à l'attaque !"
             else:
                 label = "Menu principal"
-            
+
             button = Button(250, 520, 300, 60, label)
             msg = font.render("Tu as gagné !", True, BLACK)
 
@@ -451,89 +539,118 @@ while running:
         if msg:
             msg_rect = msg.get_rect(center=(WIDTH//2, 90))
             screen.blit(msg, msg_rect)
-        
-        # Dessiner le bouton de fin
+
+        # Afficher le bouton
         if button:
             button.is_hovered(mouse_pos)
             button.draw(screen)
 
-        # ---- ÉVÉNEMENTS ----
+        # Gérer les événements
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = event.pos
-                
-                # Clic sur bouton pause
+
+                # Clic sur pause
                 if pause_btn.is_clicked(pos):
                     play_sound('click')
                     game_state = "pause"
                     pause_buttons = draw_pause_menu()
-                
-                # Clic bouton de fin
+
+                # Clic sur bouton de fin
                 elif button is not None and button.is_clicked(pos):
                     play_sound('click')
                     if game_over:
                         setup_game()
                     elif game_won:
-                        if current_level < len(levels) - 1:
+                        # Niveau 2 terminé = lancer le jeu d'action
+                        if current_level == 1:
+                            print("Lancement du jeu d'action après victoire niveau 2...")
+                            launch_action_game()
+                            print("Échec du lancement, continuation normale...")
+                            current_level += 1
+                            setup_game()
+                        elif current_level < len(levels) - 1:
                             current_level += 1
                             setup_game()
                         else:
-                            # Retour au menu après le dernier niveau
                             game_state = "menu"
                             menu_buttons = draw_menu()
-                
-                # Clic cartes uniquement en phase play
+
+                # Clic sur une carte
                 elif phase == "play" and not game_over and not game_won:
                     clicked = get_card(pos)
-                    if clicked is not None and clicked not in revealed and clicked not in matched and len(revealed) < 2:
+                    if clicked is not None and clicked not in revealed and clicked not in cartes_trouvees and len(revealed) < 2:
                         revealed.append(clicked)
                         play_sound('flip')
                         if len(revealed) == 2:
                             wait_time = now
-    
-    # ========== MENU PAUSE ==========
+
+    # Menu pause
     elif game_state == "pause":
-        # Fond semi-transparent
+        # Redessiner le jeu en arrière-plan
+        draw_background('game')
+        
+        title_font = pygame.font.SysFont("Comic Sans MS", 40, bold=True)
+        title_text = title_font.render("Mène ton enquête", True, BLACK)
+        title_rect = title_text.get_rect(center=(WIDTH//2, 50))
+        screen.blit(title_text, title_rect)
+
+        draw_cards(show_all=(phase == "show" or phase == "shuffle"))
+        
+        # Afficher le temps et les erreurs
+        elapsed = (now - temps_debut) // 1000
+        if game_over or game_won:
+            elapsed = (phase_start - temps_debut) // 1000
+        font = pygame.font.SysFont("Comic Sans MS", 30, bold=True)
+        timer_text = font.render(f"Temps : {elapsed} s", True, BLACK)
+        screen.blit(timer_text, (10, 10))
+        error_text = font.render(f"Erreurs : {errors}/{MAX_ERRORS}", True, BLACK)
+        screen.blit(error_text, (WIDTH - 200, 55))
+        
+        # Overlay sombre
         overlay = pygame.Surface((WIDTH, HEIGHT))
         overlay.set_alpha(200)
         overlay.fill(BLACK)
         screen.blit(overlay, (0, 0))
-        
-        # Titre
+
+        # Titre PAUSE
         title_font = pygame.font.SysFont("Comic Sans MS", 60, bold=True)
         title = title_font.render("PAUSE", True, WHITE)
         title_rect = title.get_rect(center=(WIDTH//2, 150))
         screen.blit(title, title_rect)
-        
+
         # Boutons
         resume_btn = Button(250, 250, 300, 60, "Continuer")
         menu_btn = Button(250, 340, 300, 60, "Menu principal")
         quit_btn = Button(250, 430, 300, 60, "Quitter")
-        
+
         pause_buttons = [resume_btn, menu_btn, quit_btn]
-        
-        # Dessiner les boutons
+
+        # Afficher les boutons
         for btn in pause_buttons:
             btn.is_hovered(mouse_pos)
             btn.draw(screen)
-        
-        # Gestion des événements
+
+        # Contrôle du volume
+        draw_volume_control(20, HEIGHT - 50)
+
+        # Gérer les clics
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if pause_buttons[0].is_clicked(mouse_pos):  # Continuer
+                if pause_buttons[0].is_clicked(mouse_pos):
                     play_sound('click')
                     game_state = "game"
-                elif pause_buttons[1].is_clicked(mouse_pos):  # Menu
+                elif pause_buttons[1].is_clicked(mouse_pos):
                     play_sound('click')
                     game_state = "menu"
                     menu_buttons = draw_menu()
-                elif pause_buttons[2].is_clicked(mouse_pos):  # Quitter
+                elif pause_buttons[2].is_clicked(mouse_pos):
                     running = False
-    
+
     pygame.display.flip()
 
 pygame.quit()
