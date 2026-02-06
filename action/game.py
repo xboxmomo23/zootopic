@@ -177,7 +177,7 @@ class Game:
         self.remaining_time = self.game_duration
         self.best_score = self.load_best_score()
         self.game_finished = False
-        self.serpents_killed = 0
+        self.ours_tues = 0
 
         # Génération du fond d'écran procédural
         # Chargement du fond d'écran LABO
@@ -272,27 +272,28 @@ class Game:
             if self.remaining_time <= 0:
                 self.game_finished = True
                 # Mettre à jour le meilleur score
-                if self.serpents_killed > self.best_score:
-                    self.best_score = self.serpents_killed
+                if self.ours_tues > self.best_score:
+                    self.best_score = self.ours_tues
                     self.save_best_score()
                 # Sauvegarder dans l'historique
-                self.save_history(self.serpents_killed, self.game_duration, 'victoire')
+                self.save_history(self.ours_tues, self.game_duration, 'victoire')
 
     def check_collisions(self):
-        # Collision projectiles - ennemis (serpents)
+        # Collision projectiles - ennemis (ours)
         for projectile in self.player.all_projectiles:
             enemies_hit = pygame.sprite.spritecollide(projectile, self.all_enemies, False)
             for enemy in enemies_hit:
                 projectile.kill()
                 if enemy.take_damage(self.player.attack):
                     self.sound_hit.play()  # Son quand un ennemi meurt
+                    self.ours_tues += 1  # Compter l'ours tué
 
             # Collision joueur - ennemis
         enemies_collided = pygame.sprite.spritecollide(self.player, self.all_enemies, True)
         if enemies_collided:
             self.sound_hit.play()  # Son quand le joueur prend un coup
 
-        # Collision joueur - ennemis (serpents)
+        # Collision joueur - ennemis (ours)
         enemies_collided = pygame.sprite.spritecollide(self.player, self.all_enemies, True)
         for enemy in enemies_collided:
             self.player.take_damage(25)
@@ -300,7 +301,7 @@ class Game:
                 self.game_over = True
                 # Sauvegarder dans l'historique (défaite)
                 elapsed = (pygame.time.get_ticks() - self.start_time - self.pause_time) / 1000
-                self.save_history(self.serpents_killed, elapsed, 'défaite')
+                self.save_history(self.ours_tues, elapsed, 'défaite')
 
         # Collision joueur - flammes (depuis le FlameRain)
         flames_collided = pygame.sprite.spritecollide(self.player, self.flame_rain.flames, True)
@@ -310,7 +311,7 @@ class Game:
                 self.game_over = True
                 # Sauvegarder dans l'historique (défaite)
                 elapsed = (pygame.time.get_ticks() - self.start_time - self.pause_time) / 1000
-                self.save_history(self.serpents_killed, elapsed, 'défaite')
+                self.save_history(self.ours_tues, elapsed, 'défaite')
 
     def update(self):
         if self.paused or self.show_history or self.show_menu:
@@ -320,7 +321,7 @@ class Game:
             # Mettre à jour le timer
             self.update_timer()
             
-            # Spawn des ennemis (serpents)
+            # Spawn des ennemis (ours)
             self.enemy_spawn_timer += 1
             if self.enemy_spawn_timer >= self.spawn_delay:
                 self.spawn_enemy()
@@ -372,8 +373,8 @@ class Game:
         screen.blit(time_bg, (310, 5))
         screen.blit(time_text, (320, 10))
 
-        # Afficher les serpents tués (en haut à gauche sous la vie)
-        kills_text = self.small_font.render(f'🐍 Serpents: {self.serpents_killed}', True, (255, 255, 255))
+        # Afficher les ours tués (en haut à gauche sous la vie)
+        kills_text = self.small_font.render(f'🐻 Ours: {self.ours_tues}', True, (255, 255, 255))
         kills_bg = pygame.Surface((200, 35), pygame.SRCALPHA)
         kills_bg.fill((0, 0, 0, 150))
         screen.blit(kills_bg, (10, 40))
@@ -426,7 +427,7 @@ class Game:
             screen.blit(overlay, (0, 0))
             
             game_over_text = self.big_font.render('GAME OVER', True, (255, 0, 0))
-            kills_final = self.font.render(f'Serpents tués: {self.serpents_killed}', True, (255, 255, 255))
+            kills_final = self.font.render(f'Ours tués: {self.ours_tues}', True, (255, 255, 255))
             record_info = self.font.render(f'Record: {self.best_score}', True, (255, 215, 0))
             restart_text = self.font.render('Appuyez sur R pour recommencer', True, (255, 255, 255))
             
@@ -443,10 +444,10 @@ class Game:
             screen.blit(overlay, (0, 0))
             
             finished_text = self.big_font.render('TEMPS ÉCOULÉ!', True, (255, 215, 0))
-            kills_final = self.font.render(f'Serpents tués: {self.serpents_killed}', True, (255, 255, 255))
+            kills_final = self.font.render(f'Ours tués: {self.ours_tues}', True, (255, 255, 255))
             
             # Nouveau record ?
-            if self.serpents_killed == self.best_score and self.serpents_killed > 0:
+            if self.ours_tues == self.best_score and self.ours_tues > 0:
                 record_info = self.big_font.render('NOUVEAU RECORD! 🏆', True, (0, 255, 0))
                 screen.blit(record_info, (150, 340))
             else:
@@ -540,7 +541,7 @@ class Game:
                 
                 # En-têtes de colonnes
                 header_date = self.small_font.render('Date & Heure', True, (200, 200, 200))
-                header_kills = self.small_font.render('Serpents', True, (200, 200, 200))
+                header_kills = self.small_font.render('Ours', True, (200, 200, 200))
                 header_duration = self.small_font.render('Durée', True, (200, 200, 200))
                 header_outcome = self.small_font.render('Résultat', True, (200, 200, 200))
                 
@@ -618,7 +619,7 @@ class Game:
         self.game_finished = False
         self.start_time = pygame.time.get_ticks()
         self.remaining_time = self.game_duration
-        self.serpents_killed = 0
+        self.ours_tues = 0
         self.paused = False
         self.pause_time = 0
         self.show_menu = False
