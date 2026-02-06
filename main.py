@@ -97,7 +97,7 @@ def draw_volume_control(x, y):
     pygame.draw.rect(screen, WHITE, vol_rect, border_radius=15)
 
     # Texte SON
-    draw_text("SON", button_font, BLACK, x + 95, y + 15)
+    draw_text("SON", button_font, BLACK, x + 140, y + 0)
 
     # Barre de progression
     vol_bar_rect = pygame.Rect(x + 25, y + 10, 100, 10)
@@ -106,7 +106,7 @@ def draw_volume_control(x, y):
 
     # Curseur
     vol_knob_rect = pygame.Rect(x + 25 + 100 * volume - 5, y + 5, 10, 20)
-    pygame.draw.rect(screen, ORANGE, vol_knob_rect, border_radius=3)
+    pygame.draw.rect(screen, BLACK, vol_knob_rect, border_radius=3)
 
     # Détecter le clic sur la barre
     mouse_pos = pygame.mouse.get_pos()

@@ -13,7 +13,7 @@ def save_volume():
 pygame.init()
 pygame.mixer.init()
 
-# Constantes
+# Constante
 WIDTH, HEIGHT = 800, 600
 FPS = 60
 WHITE = (255, 255, 255)
@@ -99,7 +99,7 @@ def draw_volume_control():
 
     # Bouton de réglage du son
     vol_knob_rect = pygame.Rect(25 + 100 * volume - 5, HEIGHT - 35, 10, 20)
-    pygame.draw.rect(screen, WHITE, vol_knob_rect, border_radius=3)
+    pygame.draw.rect(screen, BLACK, vol_knob_rect, border_radius=3)
 
     # Gestion du clic sur la barre de volume
     mouse_pos = pygame.mouse.get_pos()
@@ -112,25 +112,9 @@ def start_game():
     global volume
     print("Lancement de main.py...")
     pygame.mixer.music.stop()
-    
-    # ✅ CORRECTION : Chemin correct vers main.py
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    main_path = os.path.join(script_dir, "main.py")
-    
-    print(f"Répertoire du menu : {script_dir}")
-    print(f"Chemin vers main.py : {main_path}")
-    
-    if os.path.exists(main_path):
-        print(f"✓ Fichier trouvé, lancement...")
-        # ✅ Exécuter main.py DANS son propre répertoire (cwd=script_dir)
-        subprocess.run(["python", "main.py"], cwd=script_dir)
-    else:
-        print(f"✗ ERREUR : {main_path} introuvable !")
-        print("Vérifiez que main.py est dans le même dossier que menu.py")
-    
+    subprocess.run(["python", "main.py"])
     pygame.quit()
     sys.exit()
-
 def main_menu():
     global volume
     pulse = 0
