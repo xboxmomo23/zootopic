@@ -199,6 +199,19 @@ class Game:
         self.pause_button_rect = pygame.Rect(720, 10, 30, 30)
         self.menu_button_rect = pygame.Rect(760, 10, 30, 30)
 
+        # 1. Charger et lancer la musique de fond
+        pygame.mixer.music.load('assets/sounds/ROCK.mp3')
+        pygame.mixer.music.set_volume(0.5)  # Volume à 50%
+        pygame.mixer.music.play(-1)  # -1 pour boucler à l'infini
+
+        # 2. Charger les effets sonores
+        self.sound_shoot = pygame.mixer.Sound('assets/sounds/GUN.wav')
+        self.sound_jump = pygame.mixer.Sound('assets/sounds/VOX.wav')
+        self.sound_hit = pygame.mixer.Sound('assets/sounds/JUMP.wav')
+
+        # Ajuster le volume des effets si besoin
+        self.sound_shoot.set_volume(0.3)
+
     def spawn_enemy(self):
         enemy = Enemy()
         self.all_enemies.add(enemy)
@@ -272,8 +285,12 @@ class Game:
             for enemy in enemies_hit:
                 projectile.kill()
                 if enemy.take_damage(self.player.attack):
-                    self.player.score += 15
-                    self.serpents_killed += 1
+                    self.sound_hit.play()  # Son quand un ennemi meurt
+
+            # Collision joueur - ennemis
+        enemies_collided = pygame.sprite.spritecollide(self.player, self.all_enemies, True)
+        if enemies_collided:
+            self.sound_hit.play()  # Son quand le joueur prend un coup
 
         # Collision joueur - ennemis (serpents)
         enemies_collided = pygame.sprite.spritecollide(self.player, self.all_enemies, True)

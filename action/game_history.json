@@ -1,0 +1,62 @@
+[
+  {
+    "date": "05/02/2026 23:42",
+    "kills": 0,
+    "duration": 60,
+    "outcome": "victoire"
+  },
+  {
+    "date": "05/02/2026 16:35",
+    "kills": 0,
+    "duration": 60,
+    "outcome": "victoire"
+  },
+  {
+    "date": "05/02/2026 16:33",
+    "kills": 0,
+    "duration": 31,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "05/02/2026 16:24",
+    "kills": 0,
+    "duration": 36,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "05/02/2026 16:10",
+    "kills": 26,
+    "duration": 49,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "04/02/2026 20:38",
+    "kills": 14,
+    "duration": 31,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "04/02/2026 18:33",
+    "kills": 30,
+    "duration": 59,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "04/02/2026 18:29",
+    "kills": 15,
+    "duration": 38,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "04/02/2026 18:27",
+    "kills": 5,
+    "duration": 16,
+    "outcome": "d\u00e9faite"
+  },
+  {
+    "date": "04/02/2026 14:50",
+    "kills": 28,
+    "duration": 60,
+    "outcome": "victoire"
+  }
+]

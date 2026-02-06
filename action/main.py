@@ -2,6 +2,7 @@ import pygame
 from game import Game
 
 pygame.init()
+pygame.mixer.init()
 
 # Générer la fenêtre de jeu
 pygame.display.set_caption("LABO")
@@ -38,6 +39,14 @@ while running:
             # Tirer avec ESPACE
             if event.key == pygame.K_SPACE and not game.game_over and not game.game_finished and not game.paused:
                 game.player.shoot()
+                if event.key == pygame.K_SPACE and not game.paused:
+                    game.player.shoot()
+                    game.sound_shoot.play()  # Jouer le son de tir
+
+                if (event.key == pygame.K_UP or event.key == pygame.K_z) and not game.paused:
+                    if game.player.jumps_remaining > 0:  # Si le joueur peut encore sauter
+                        game.sound_jump.play()
+                    game.player.jump()
             
             # Sauter avec FLÈCHE HAUT ou Z
             if (event.key == pygame.K_UP or event.key == pygame.K_z) and not game.game_over and not game.game_finished and not game.paused:
